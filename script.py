@@ -2,36 +2,45 @@ import requests
 import os
 import json
 
-API_KEY = os.getenv('SERPER_API_KEY')
+# Recupera le chiavi che hai appena inserito nei Secrets
+SERPER_KEY = os.getenv('SERPER_API_KEY')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+
+def invia_telegram(messaggio):
+    """Invia il risultato direttamente sul tuo cellulare"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": messaggio, "parse_mode": "Markdown"}
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f"Errore invio Telegram: {e}")
 
 def search_legal_jobs():
     url = "https://google.serper.dev/search"
-    
-    # Questa ricerca setaccia i portali specifici (4clegal, traspare, ecc.) 
-    # e i siti della PA per Civile e Lavoro
+    # Ricerca estesa agli ultimi 20 giorni per non perdere nulla
     queries = [
-        'site:4clegal.com "civile" OR "lavoro" "avviso"',
-        'site:traspare.com "incarico legale" "civile"',
-        'site:.it "amministrazione trasparente" "elenco avvocati" 2026',
-        '"avviso pubblico" "patrocinio legale" civile lavoro when:1d'
+        'site:4clegal.com "civile" OR "lavoro" when:20d',
+        'site:traspare.com "incarico legale" "civile" when:20d',
+        'site:.it "amministrazione trasparente" "incarico legale" civile when:20d'
     ]
     
-    all_results = []
-    headers = {'X-API-KEY': API_KEY, 'Content-Type': 'application/json'}
+    nuovi_link = []
+    headers = {'X-API-KEY': SERPER_KEY, 'Content-Type': 'application/json'}
 
     for q in queries:
         payload = json.dumps({"q": q, "gl": "it", "hl": "it"})
         response = requests.post(url, headers=headers, data=payload)
         items = response.json().get('organic', [])
         for item in items:
-            all_results.append(f"- {item['title']}\n  Link: {item['link']}")
+            nuovi_link.append(f"📌 *{item['title']}*\n{item['link']}")
     
-    return "\n\n".join(all_results)
+    return list(set(nuovi_link)) # Elimina i doppioni
 
 if __name__ == "__main__":
-    report = search_legal_jobs()
-    if report:
-        print("INCARICHI TROVATI (CIVILE E LAVORO):\n")
-        print(report)
+    risultati = search_legal_jobs()
+    if risultati:
+        testo_finale = "⚖️ *LEGAL SCOUT: BANDI TROVATI (Ultimi 20gg)*\n\n" + "\n\n".join(risultati)
+        invia_telegram(testo_finale)
     else:
-        print("Nessun nuovo bando trovato nelle ultime 24 ore.")
+        invia_telegram("🔎 Ricerca completata: nessun nuovo bando trovato negli ultimi 20 giorni.")
