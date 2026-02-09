@@ -2,7 +2,7 @@ name: Legal Agent Daily
 on:
   schedule:
     - cron: '0 7 * * *'  # Gira ogni mattina alle 08:00
-  workflow_dispatch:      # Questo fa apparire il tasto "Run workflow"
+  workflow_dispatch:      # Attiva il tasto "Run workflow"
 
 jobs:
   run-search:
